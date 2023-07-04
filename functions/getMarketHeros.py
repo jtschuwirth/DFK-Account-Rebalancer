@@ -6,7 +6,7 @@ headers = {
     'User-Agent': 'Mozilla/5.0'
 }
 
-def getMarketHeros(amount):
+def getMarketHeros(amount, max_price):
     query = """
           query($max_price: String, $profession: String) {
               heroes(orderBy: salePrice, where: {
@@ -23,7 +23,7 @@ def getMarketHeros(amount):
       """
      
     variables = {
-        "max_price": str(40*10**18),
+        "max_price": str(max_price*10**18),
         "profession": "mining",
     }
      
