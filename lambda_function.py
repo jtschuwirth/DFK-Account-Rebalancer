@@ -24,7 +24,7 @@ def handler(event, context):
         try:
             if getCrystalBalance(account, w3) < hero["price"]: return "Not enough crystals"
             buyHero(account, hero["id"], hero["price"], nonce, w3)
-            tracking_table.put_item(Item={"heroId": hero["id"], "price": str(hero["price"]/10**18)})
+            tracking_table.put_item(Item={"heroId_": str(hero["id"]), "price": str(hero["price"]/10**18)})
             print(f"Hero {hero['id']} bought for {hero['price']} crystals")
             nonce+=1
         except Exception as e:
