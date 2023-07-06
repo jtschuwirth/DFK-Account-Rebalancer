@@ -3,6 +3,7 @@ from functions.getMarketHeros import getMarketHeros
 from functions.provider import get_provider, get_account
 from functions.buyHero import buyHero
 from functions.getCrystalBalance import getCrystalBalance
+import time
 
 w3 = get_provider("dfk")
 
@@ -24,7 +25,7 @@ def handler(event, context):
         try:
             if getCrystalBalance(account, w3) < hero["price"]: return "Not enough crystals"
             buyHero(account, hero["id"], hero["price"], nonce, w3)
-            tracking_table.put_item(Item={"heroId_": str(hero["id"]), "price": str(hero["price"]/10**18)})
+            tracking_table.put_item(Item={"heroId_": str(hero["id"]), "price": str(hero["price"]/10**18), "time_": str(int(time.time()))})
             print(f"Hero {hero['id']} bought for {hero['price']} crystals")
             nonce+=1
         except Exception as e:
