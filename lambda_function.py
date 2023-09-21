@@ -1,8 +1,6 @@
-from functions.data import account_table, settings_table, tracking_table, init_managers_table
-from functions.getMarketHeros import getMarketHeros
+from functions.data import account_table, settings_table, init_managers_table, init_profit_tracking_table
 from functions.provider import get_provider, get_account
-from functions.buyHero import buyHero
-from functions.utils import getCrystalBalance, getJewelBalance, sendCrystal, buyCrystal, getCrystalPriceJewel, heroNumber, createETHAddress, fillGas
+from functions.utils import getCrystalBalance, getJewelBalance, sendCrystal, sendJewel, buyCrystal, getCrystalPriceJewel, heroNumber, createETHAddress, fillGas
 from functions.save_encryption import saveEncryption
 from functions.send_heros import sendHeros
 import time
@@ -10,6 +8,7 @@ import time
 w3 = get_provider("dfk")
 
 def handler(event, context):
+    profit_tracking_table = init_profit_tracking_table()
     managers_table = init_managers_table()
     warehouse_address = account_table.scan(
             FilterExpression="warehouse = :warehouse",
@@ -17,13 +16,15 @@ def handler(event, context):
                 ":warehouse": True
             })["Items"][0]["address_"]
     buyer_settings = settings_table.get_item(Key={"key_": "buyer_settings"})["Item"]
-    enabled_buyer = buyer_settings["enabled"]
-    max_price = buyer_settings["max_price"]
     enabled_refiller = buyer_settings["refiller"]
+    enabled_profit = buyer_settings["profit"]
     setup_address = buyer_settings["refiller_address"]
+    profit_address = buyer_settings["profit_address"]
     refiller_min_buffer = float(buyer_settings["refiller_min_buffer"])
+    refiller_max_buffer = float(buyer_settings["refiller_max_buffer"])
     buyer_min_buffer = float(buyer_settings["buyer_min_buffer"])
     buyer_refill_amount = float(buyer_settings["buyer_refill_amount"])
+    profit_amount = float(buyer_settings["profit_amount"])
     setup_account = get_account(setup_address, w3)
     setup_nonce = w3.eth.get_transaction_count(setup_account.address)
 
@@ -41,20 +42,19 @@ def handler(event, context):
             print(f"Sending {buyer_refill_amount} crystals to buyer")
             sendCrystal(warehouse_account, setup_account, crystal_amount, setup_nonce, w3)
             setup_nonce+=1
-
-    if not enabled_buyer: return "Buyer is disabled"
-    heros_to_buy = getMarketHeros(10, max_price)
-    if len(heros_to_buy) != 0:
-        for hero in heros_to_buy:
-            try:
-                if getCrystalBalance(warehouse_account, w3) < hero["price"]: return "Not enough crystals"
-                buyHero(warehouse_account, hero["id"], hero["price"], warehouse_nonce, w3)
-                tracking_table.put_item(Item={"heroId_": str(hero["id"]), "price": str(hero["price"]/10**18), "time_": str(int(time.time()))})
-                print(f"Hero {hero['id']} bought for {hero['price']/10*18} crystals")
-                warehouse_nonce+=1
-            except Exception as e:
-                print(e)
-                pass
+    if enabled_profit:
+        if  refiller_max_buffer*10**18 < getJewelBalance(setup_account, w3):
+            jewel_amount = int(profit_amount*10**18)
+            sendJewel(profit_address, setup_account, jewel_amount, setup_nonce, w3)
+            setup_nonce+=1
+            profit_tracking_table.put_item(
+                    Item={
+                        "time_": str(time.time()),
+                        "amount": profit_amount,
+                        "from": setup_address,
+                        "address": profit_address
+                    }
+            )
     
     warehouse_heros = heroNumber(warehouse_account, w3)
 
