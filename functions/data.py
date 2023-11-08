@@ -42,7 +42,7 @@ def init_profit_tracking_table():
             region_name = "us-east-1",
         )
 
-    return my_session.resource('dynamodb').Table("dfk-profit-tracking")
+    return my_session.resource('dynamodb').Table("dfk-profit-tracker")
 
 def init_managers_table():
     my_session = boto3.session.Session(
