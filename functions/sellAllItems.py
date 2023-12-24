@@ -36,7 +36,6 @@ def sellAllItems(account, RPCProvider):
         items_names.append(item)
         items_addresses.append(items[item][RPCProvider.chain])
 
-    print("Checking Excedent items...")
     response = ethereum_client.batch_call_same_function(erc20_contract.functions.balanceOf(account.address), items_addresses)
     for i in range(len(response)):
         if response[i] > 0:  

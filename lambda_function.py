@@ -58,47 +58,64 @@ def handler(event, context):
 
     if enabled_refiller:
         if refiller_min_buffer*10**18 < getJewelBalance(setup_account, RPCProvider) and getCrystalBalance(warehouse_account, RPCProvider) < buyer_min_buffer*10**18:
-            crystal_value = getCrystalPriceJewel(RPCProvider) 
-            crystal_amount = int(buyer_refill_amount*10**18)
-            expected_cost = int(crystal_amount*crystal_value*1.05)
-            print("Refilling buyer account")
-            print(f"Buying {buyer_refill_amount} crystals")
-            buyCrystal(setup_account, crystal_amount, expected_cost, setup_nonce, RPCProvider)
-            setup_nonce+=1
-            print(f"Sending {buyer_refill_amount} crystals to buyer")
-            sendCrystal(warehouse_account, setup_account, crystal_amount, setup_nonce, RPCProvider)
-            setup_nonce+=1
+            try:
+                crystal_value = getCrystalPriceJewel(RPCProvider) 
+                crystal_amount = int(buyer_refill_amount*10**18)
+                expected_cost = int(crystal_amount*crystal_value*1.05)
+                print("Refilling buyer account")
+                print(f"Buying {buyer_refill_amount} crystals")
+                logger.info(f"Refilling buyer account with {buyer_refill_amount} crystals")
+                buyCrystal(setup_account, crystal_amount, expected_cost, setup_nonce, RPCProvider)
+                setup_nonce+=1
+                print(f"Sending {buyer_refill_amount} crystals to buyer")
+                logger.info(f"Sending {buyer_refill_amount} crystals to buyer")
+                sendCrystal(warehouse_account, setup_account, crystal_amount, setup_nonce, RPCProvider)
+                setup_nonce+=1
+            except Exception as e:
+                print(e)
+                logger.error(e)
 
     if enabled_profit:
-        if  refiller_max_buffer*10**18 < getJewelBalance(setup_account, RPCProvider):
-            jewel_amount = int(profit_amount*10**18)
-            sendJewel(profit_address, setup_account, jewel_amount, setup_nonce, RPCProvider)
-            setup_nonce+=1
-            tablesManager.profit_tracking.put_item(
-                    Item={
-                        "time_": str(time.time()),
-                        "amount": str(profit_amount),
-                        "from": setup_address,
-                        "address": profit_address
-                    }
-            )
-        if refiller_max_buffer*10**18 < getJewelBalance(trader_account, RPCProvider):
-            jewel_amount = int(profit_amount*10**18)
-            sendJewel(profit_address, trader_account, jewel_amount, trader_nonce, RPCProvider)
-            trader_nonce+=1
-            tablesManager.profit_tracking.put_item(
-                    Item={
-                        "time_": str(time.time()),
-                        "amount": str(profit_amount),
-                        "from": trader_address,
-                        "address": profit_address
-                    }
-            )
+        try:
+            if  refiller_max_buffer*10**18 < getJewelBalance(setup_account, RPCProvider):
+                jewel_amount = int(profit_amount*10**18)
+                sendJewel(profit_address, setup_account, jewel_amount, setup_nonce, RPCProvider)
+                setup_nonce+=1
+                tablesManager.profit_tracking.put_item(
+                        Item={
+                            "time_": str(time.time()),
+                            "amount": str(profit_amount),
+                            "from": setup_address,
+                            "address": profit_address
+                        }
+                )
+            if refiller_max_buffer*10**18 < getJewelBalance(trader_account, RPCProvider):
+                jewel_amount = int(profit_amount*10**18)
+                sendJewel(profit_address, trader_account, jewel_amount, trader_nonce, RPCProvider)
+                trader_nonce+=1
+                tablesManager.profit_tracking.put_item(
+                        Item={
+                            "time_": str(time.time()),
+                            "amount": str(profit_amount),
+                            "from": trader_address,
+                            "address": profit_address
+                        }
+                )
+        except Exception as e:
+            print(e)
+            logger.error(e)
+
     active_orders = tablesManager.active_orders.scan()
     has_active_orders  = len(active_orders["Items"]) > 0 if "Items" in active_orders else False
 
     if not has_active_orders:
-        sellAllItems(trader_account, RPCProvider)
+        print("Checking items to sell")
+        logger.info("Checking items to sell")
+        try:
+            sellAllItems(trader_account, RPCProvider)
+        except Exception as e:
+            print(e)
+            logger.error(e)
 
     
     warehouse_heros = heroNumber(warehouse_account, RPCProvider)
@@ -141,21 +158,29 @@ def handler(event, context):
     
     hero_number = heroNumber(deployed_account, RPCProvider)
     jewel_balance = getJewelBalance(deployed_account, RPCProvider)
+
     print(f"Account has {hero_number} heros")
+    logger.info(f"Account has {hero_number} heros")
+
     print(f"Account has {jewel_balance} jewel")
+    logger.info(f"Account has {jewel_balance} jewel")
 
     if 18 <= hero_number and jewel_balance != 0:
         return "Account is already deployed"
     if jewel_balance == 0:
         print("Adding Gas")
+        logger.info("Adding Gas")
         fillGas(deployed_account, setup_account, gas_fill_amount*10**18, setup_nonce, RPCProvider)
         setup_nonce+=1
         print(f"Filled gas to account {deployed_account.address}")
+        logger.info(f"Filled gas to account {deployed_account.address}")
     if 18 <= hero_number:
         print("Account already has 18 heros")
+        logger.info("Account already has 18 heros")
     else:
         amount = min(18-hero_number, warehouse_heros)
         print("Getting heros from warehouse")
+        logger.info("Getting heros from warehouse")
         sendHeros(deployed_account, warehouse_account, amount, warehouse_nonce, RPCProvider)
 
     return "Done"
