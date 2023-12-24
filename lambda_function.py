@@ -1,91 +1,136 @@
-from functions.data import account_table, settings_table, init_managers_table, init_profit_tracking_table
-from functions.provider import get_provider, get_account
+from functions.getAccount import get_account
+from functions.getSecret import get_secret
+from functions.sellTraderExcedents import sellTraderExcedents
 from functions.utils import getCrystalBalance, getJewelBalance, sendCrystal, sendJewel, buyCrystal, getCrystalPriceJewel, heroNumber, createETHAddress, fillGas
 from functions.save_encryption import saveEncryption
 from functions.send_heros import sendHeros
+from functions.classes.RPCProvider import get_rpc_provider
+from functions.classes.TablesManager import TablesManager
 import time
+import os
+import logging
+from dotenv import load_dotenv
 
-w3 = get_provider("dfk")
+load_dotenv()
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+tablesManager = TablesManager(os.environ["PROD"] == "true")
+disabled_rpc_list = tablesManager.autoplayer.get_item(Key={"key_": "autoplayer_settings"})["Item"]["disabled_rpc_list"]
+RPCProvider = get_rpc_provider("dfk", disabled_rpc_list, logger)
+secret = get_secret(os.environ["PROD"] == "true")
 
 def handler(event, context):
-    profit_tracking_table = init_profit_tracking_table()
-    managers_table = init_managers_table()
-    warehouse_address = account_table.scan(
+    warehouse_address = tablesManager.accounts.scan(
             FilterExpression="warehouse = :warehouse",
             ExpressionAttributeValues={
                 ":warehouse": True
             })["Items"][0]["address_"]
-    buyer_settings = settings_table.get_item(Key={"key_": "buyer_settings"})["Item"]
-    enabled_refiller = buyer_settings["refiller"]
-    enabled_profit = buyer_settings["profit"]
+    trader_address = tablesManager.accounts.scan(
+            FilterExpression="trader = :trader",
+            ExpressionAttributeValues={
+                ":trader": True
+            })["Items"][0]["address_"]
+    
+    buyer_settings = tablesManager.settings.get_item(Key={"key_": "buyer_settings"})["Item"]
     setup_address = buyer_settings["refiller_address"]
     profit_address = buyer_settings["profit_address"]
+
+
+
+    enabled_refiller = buyer_settings["refiller"]
+    enabled_profit = buyer_settings["profit"]
     refiller_min_buffer = float(buyer_settings["refiller_min_buffer"])
     refiller_max_buffer = float(buyer_settings["refiller_max_buffer"])
     buyer_min_buffer = float(buyer_settings["buyer_min_buffer"])
     buyer_refill_amount = float(buyer_settings["buyer_refill_amount"])
     profit_amount = float(buyer_settings["profit_amount"])
-    setup_account = get_account(setup_address, w3)
-    setup_nonce = w3.eth.get_transaction_count(setup_account.address)
 
-    warehouse_account = get_account(warehouse_address, w3)
-    warehouse_nonce = w3.eth.get_transaction_count(warehouse_account.address)
+    setup_account = get_account(tablesManager, secret, setup_address, RPCProvider.w3)
+    setup_nonce = RPCProvider.w3.eth.get_transaction_count(setup_account.address)
+
+    warehouse_account = get_account(tablesManager, secret, warehouse_address, RPCProvider.w3)
+    warehouse_nonce = RPCProvider.w3.eth.get_transaction_count(warehouse_account.address)
+
+    trader_account = get_account(tablesManager, secret, trader_address, RPCProvider.w3)
+    trader_nonce = RPCProvider.w3.eth.get_transaction_count(trader_account.address)
+
     if enabled_refiller:
-        if refiller_min_buffer*10**18 < getJewelBalance(setup_account, w3) and getCrystalBalance(warehouse_account, w3) < buyer_min_buffer*10**18:
-            crystal_value = getCrystalPriceJewel(w3) 
+        if refiller_min_buffer*10**18 < getJewelBalance(setup_account, RPCProvider) and getCrystalBalance(warehouse_account, RPCProvider) < buyer_min_buffer*10**18:
+            crystal_value = getCrystalPriceJewel(RPCProvider) 
             crystal_amount = int(buyer_refill_amount*10**18)
             expected_cost = int(crystal_amount*crystal_value*1.05)
             print("Refilling buyer account")
             print(f"Buying {buyer_refill_amount} crystals")
-            buyCrystal(setup_account, crystal_amount, expected_cost, setup_nonce, w3)
+            buyCrystal(setup_account, crystal_amount, expected_cost, setup_nonce, RPCProvider)
             setup_nonce+=1
             print(f"Sending {buyer_refill_amount} crystals to buyer")
-            sendCrystal(warehouse_account, setup_account, crystal_amount, setup_nonce, w3)
+            sendCrystal(warehouse_account, setup_account, crystal_amount, setup_nonce, RPCProvider)
             setup_nonce+=1
+
     if enabled_profit:
-        if  refiller_max_buffer*10**18 < getJewelBalance(setup_account, w3):
+        if  refiller_max_buffer*10**18 < getJewelBalance(setup_account, RPCProvider):
             jewel_amount = int(profit_amount*10**18)
-            sendJewel(profit_address, setup_account, jewel_amount, setup_nonce, w3)
+            sendJewel(profit_address, setup_account, jewel_amount, setup_nonce, RPCProvider)
             setup_nonce+=1
-            profit_tracking_table.put_item(
+            tablesManager.profit_tracking.put_item(
                     Item={
                         "time_": str(time.time()),
-                        "amount": profit_amount,
+                        "amount": str(profit_amount),
                         "from": setup_address,
                         "address": profit_address
                     }
             )
-    
-    warehouse_heros = heroNumber(warehouse_account, w3)
+        if refiller_max_buffer*10**18 < getJewelBalance(trader_account, RPCProvider):
+            jewel_amount = int(profit_amount*10**18)
+            sendJewel(profit_address, trader_account, jewel_amount, trader_nonce, RPCProvider)
+            trader_nonce+=1
+            tablesManager.profit_tracking.put_item(
+                    Item={
+                        "time_": str(time.time()),
+                        "amount": str(profit_amount),
+                        "from": trader_address,
+                        "address": profit_address
+                    }
+            )
+    active_orders = tablesManager.active_orders.scan()
+    has_active_orders  = len(active_orders["Items"]) > 0 if "Items" in active_orders else False
 
-    deployer_settings = settings_table.get_item(Key={"key_": "deployer_settings"})["Item"]
+    if not has_active_orders:
+        sellTraderExcedents(trader_account, RPCProvider)
+
+    
+    warehouse_heros = heroNumber(warehouse_account, RPCProvider)
+
+    deployer_settings = tablesManager.settings.get_item(Key={"key_": "deployer_settings"})["Item"]
 
     enabled_deployer = deployer_settings["enabled"]
     manager_address = deployer_settings["manager_address"]
     last_account_address = deployer_settings["last_account"]
     gas_fill_amount = int(deployer_settings["gas_fill_amount"])
 
-    target_accounts = managers_table.get_item(Key={"address_": manager_address})["Item"]["target_accounts"]
-    current_accounts = len(account_table.scan(
+    target_accounts = tablesManager.managers.get_item(Key={"address_": manager_address})["Item"]["target_accounts"]
+    current_accounts = len(tablesManager.accounts.scan(
             FilterExpression="pay_to = :manager_",
             ExpressionAttributeValues={
                 ":manager_": manager_address,
             })["Items"])
     
     if not enabled_deployer: return "Deployer is disabled"
-    last_account = get_account(last_account_address, w3)
-    last_acc_jewel_balance = getJewelBalance(last_account, w3)
-    last_acc_hero_number = heroNumber(last_account, w3)
+    last_account = get_account(tablesManager, secret, last_account_address, RPCProvider.w3)
+    last_acc_jewel_balance = getJewelBalance(last_account, RPCProvider)
+    last_acc_hero_number = heroNumber(last_account, RPCProvider)
     if 18 <= last_acc_hero_number and last_acc_jewel_balance != 0:
         if int(current_accounts) >= int(target_accounts): return "Target accounts reached"
         if 18 > warehouse_heros: return "Warehouse does not have enought heros"
         print("Last account has 18 heros and jewel balance")
         print("creating new account")
         new_account = createETHAddress()
-        saveEncryption(new_account["address"], new_account["private_key"], manager_address)
-        deployed_account = get_account(new_account["address"], w3)
+        saveEncryption(tablesManager, secret, new_account["address"], new_account["private_key"], manager_address)
+        deployed_account = get_account(tablesManager, secret, new_account["address"], RPCProvider.w3)
         print(f"New account created: {new_account['address']}")
-        settings_table.update_item(
+        tablesManager.settings.update_item(
                 Key={"key_": "deployer_settings"},
                 UpdateExpression="SET last_account = :account",
                 ExpressionAttributeValues={":account": new_account["address"]}
@@ -94,8 +139,8 @@ def handler(event, context):
         if 18-last_acc_hero_number > warehouse_heros: return "Warehouse does not have enought heros"
         deployed_account = last_account
     
-    hero_number = heroNumber(deployed_account, w3)
-    jewel_balance = getJewelBalance(deployed_account, w3)
+    hero_number = heroNumber(deployed_account, RPCProvider)
+    jewel_balance = getJewelBalance(deployed_account, RPCProvider)
     print(f"Account has {hero_number} heros")
     print(f"Account has {jewel_balance} jewel")
 
@@ -103,7 +148,7 @@ def handler(event, context):
         return "Account is already deployed"
     if jewel_balance == 0:
         print("Adding Gas")
-        fillGas(deployed_account, setup_account, gas_fill_amount*10**18, setup_nonce, w3)
+        fillGas(deployed_account, setup_account, gas_fill_amount*10**18, setup_nonce, RPCProvider)
         setup_nonce+=1
         print(f"Filled gas to account {deployed_account.address}")
     if 18 <= hero_number:
@@ -111,6 +156,6 @@ def handler(event, context):
     else:
         amount = min(18-hero_number, warehouse_heros)
         print("Getting heros from warehouse")
-        sendHeros(deployed_account, warehouse_account, amount, warehouse_nonce, w3)
+        sendHeros(deployed_account, warehouse_account, amount, warehouse_nonce, RPCProvider)
 
     return "Done"

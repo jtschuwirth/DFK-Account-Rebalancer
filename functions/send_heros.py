@@ -1,8 +1,11 @@
 import requests
 import json
 
-itemsJson = open("items_data/items_dfkchain.json")
+itemsJson = open("data/items.json")
 items = json.load(itemsJson)
+
+contractsJson = open("data/contracts.json")
+contracts = json.load(contractsJson)
 
 graph_url = "https://defi-kingdoms-community-api-gateway-co06z8vi.uc.gateway.dev/graphql"
 headers = {
@@ -35,17 +38,17 @@ def getAccountHeros(account):
 
     return requests.post(graph_url, json={"query":query, "variables":variables}, headers=headers).json()["data"]["heroes"]
 
-def sendHero(account, sender, heroId, sender_nonce, w3):
-    tx = w3.eth.contract(address=items["Heroes"], abi=ERC721ABI).functions.transferFrom(sender.address, account.address, int(heroId)).build_transaction({
+def sendHero(account, sender, heroId, sender_nonce, RPCProvider):
+    tx = RPCProvider.w3.eth.contract(address=contracts["Heroes"][RPCProvider.chain], abi=ERC721ABI).functions.transferFrom(sender.address, account.address, int(heroId)).build_transaction({
         "from": sender.address,
         "nonce": sender_nonce,
     })
-    tx["gas"] = int(w3.eth.estimate_gas(tx))
-    tx["maxFeePerGas"] = w3.toWei(50, 'gwei')
-    tx["maxPriorityFeePerGas"] = w3.toWei(2, "gwei")
-    signed_tx = w3.eth.account.sign_transaction(tx, sender.key)
-    hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
-    hash = w3.toHex(hash)
+    tx["gas"] = int(RPCProvider.w3.eth.estimate_gas(tx))
+    tx["maxFeePerGas"] = RPCProvider.w3.to_wei(50, 'gwei')
+    tx["maxPriorityFeePerGas"] = RPCProvider.w3.to_wei(2, "gwei")
+    signed_tx = RPCProvider.w3.eth.account.sign_transaction(tx, sender.key)
+    hash = RPCProvider.w3.eth.send_raw_transaction(signed_tx.rawTransaction)
+    hash = RPCProvider.w3.to_hex(hash)
 
 def sendHeros(account, sender, amount, sender_nonce, w3):
     nonce = sender_nonce

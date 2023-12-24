@@ -1,0 +1,29 @@
+version: 0.2
+
+env:
+  variables:
+    rpc: $rpc
+    rpc_key: $rpc_key
+    rpc_id: $rpc_id
+    PROD: $PROD
+
+phases:
+  pre_build:
+    commands:
+      - printenv > .env
+      - echo Logging in to Amazon ECR...
+      - aws --version
+      - REPOSITORY_URI=579907623869.dkr.ecr.us-east-1.amazonaws.com
+      - REPOSITORY_NAME=dfk-hero-buyer
+      - aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $REPOSITORY_URI
+  build:
+    commands:
+      - echo Build started on `date`
+      - echo Building the Docker image...
+      - docker build -t $REPOSITORY_URI/$REPOSITORY_NAME:latest .
+      - docker tag $REPOSITORY_URI/$REPOSITORY_NAME:latest $REPOSITORY_URI/$REPOSITORY_NAME:latest
+  post_build:
+    commands:
+      - echo Build completed on `date`
+      - echo Pushing the Docker images...
+      - docker push $REPOSITORY_URI/$REPOSITORY_NAME:latest
