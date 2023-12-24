@@ -14,10 +14,10 @@ load_dotenv()
 
 tablesManager = TablesManager(os.environ["PROD"] == "true")
 disabled_rpc_list = tablesManager.autoplayer.get_item(Key={"key_": "autoplayer_settings"})["Item"]["disabled_rpc_list"]
-RPCProvider = get_rpc_provider("dfk", disabled_rpc_list, logger)
 secret = get_secret(os.environ["PROD"] == "true")
 
 def main(event, context, logger):
+    RPCProvider = get_rpc_provider("dfk", disabled_rpc_list, logger)
     warehouse_address = tablesManager.accounts.scan(
             FilterExpression="warehouse = :warehouse",
             ExpressionAttributeValues={
