@@ -6,6 +6,7 @@ logger.setLevel(logging.INFO)
 
 def handler(event, context):
     try:
+        logger.info("Starting lambda function")
         return main(event, context, logger)
     except Exception as e:
         logger.error(e)
