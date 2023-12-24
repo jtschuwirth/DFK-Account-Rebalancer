@@ -19,15 +19,20 @@ contracts = json.load(contractsJson)
 ERC20Json = open("abi/ERC20.json")
 ERC20ABI = json.load(ERC20Json)
 
-def sellTraderExcedents(account, RPCProvider):
+def sellAllItems(account, RPCProvider):
     ethereum_client = EthereumClient(RPCProvider.url)
 
     erc20_contract = get_erc20_contract(ethereum_client.w3, items["Crystal"][RPCProvider.chain])
     items_names = []
     items_addresses = []
     for item in items:
-        if item == "Crystal" or  item == "Jewel" or item == "Jade":
+        if item == "Jewel":
             continue
+        elif item == "Crystal"  and RPCProvider.chain != "dfk":
+            continue
+        elif item == "Jade" and RPCProvider.chain != "klay":
+             continue
+        
         items_names.append(item)
         items_addresses.append(items[item][RPCProvider.chain])
 
@@ -45,8 +50,8 @@ def sellTraderExcedents(account, RPCProvider):
             expected_cost = localGetAmountOut(response[i], reserves)
 
             if checkAllowance(account, token, contracts["RouterAddress"][RPCProvider.chain], ERC20ABI, RPCProvider):
-                    account.update_nonce(RPCProvider)
-                    addAllowance(account, token, contracts["RouterAddress"][RPCProvider.chain], ERC20ABI, RPCProvider)
+                account.update_nonce(RPCProvider)
+                addAllowance(account, token, contracts["RouterAddress"][RPCProvider.chain], ERC20ABI, RPCProvider)
             
             print(f"Selling {response[i]} {items_names[i]} for {expected_cost / 10**18} Jewel on {RPCProvider.chain}")
             account.update_nonce(RPCProvider)

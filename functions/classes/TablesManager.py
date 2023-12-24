@@ -18,7 +18,6 @@ class TablesManager:
         self.autoplayer = session.resource('dynamodb').Table("dfk-autoplayer")
         self.profit_tracker = session.resource('dynamodb').Table("dfk-profit-tracker")
         self.managers = session.resource('dynamodb').Table("dfk-autoplayer-managers")
-        self.settings = session.resource('dynamodb').Table("dfk-autoplayer")
         self.trades = session.resource('dynamodb').Table("dfk-trading-trades")
         self.active_orders = session.resource('dynamodb').Table("dfk-trading-active-orders")
         

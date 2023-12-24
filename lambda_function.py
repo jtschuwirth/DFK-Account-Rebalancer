@@ -1,6 +1,6 @@
 from functions.getAccount import get_account
 from functions.getSecret import get_secret
-from functions.sellTraderExcedents import sellTraderExcedents
+from functions.sellAllItems import sellAllItems
 from functions.utils import getCrystalBalance, getJewelBalance, sendCrystal, sendJewel, buyCrystal, getCrystalPriceJewel, heroNumber, createETHAddress, fillGas
 from functions.save_encryption import saveEncryption
 from functions.send_heros import sendHeros
@@ -33,7 +33,7 @@ def handler(event, context):
                 ":trader": True
             })["Items"][0]["address_"]
     
-    buyer_settings = tablesManager.settings.get_item(Key={"key_": "buyer_settings"})["Item"]
+    buyer_settings = tablesManager.autoplayer.get_item(Key={"key_": "buyer_settings"})["Item"]
     setup_address = buyer_settings["refiller_address"]
     profit_address = buyer_settings["profit_address"]
 
@@ -98,12 +98,12 @@ def handler(event, context):
     has_active_orders  = len(active_orders["Items"]) > 0 if "Items" in active_orders else False
 
     if not has_active_orders:
-        sellTraderExcedents(trader_account, RPCProvider)
+        sellAllItems(trader_account, RPCProvider)
 
     
     warehouse_heros = heroNumber(warehouse_account, RPCProvider)
 
-    deployer_settings = tablesManager.settings.get_item(Key={"key_": "deployer_settings"})["Item"]
+    deployer_settings = tablesManager.autoplayer.get_item(Key={"key_": "deployer_settings"})["Item"]
 
     enabled_deployer = deployer_settings["enabled"]
     manager_address = deployer_settings["manager_address"]
@@ -130,7 +130,7 @@ def handler(event, context):
         saveEncryption(tablesManager, secret, new_account["address"], new_account["private_key"], manager_address)
         deployed_account = get_account(tablesManager, secret, new_account["address"], RPCProvider.w3)
         print(f"New account created: {new_account['address']}")
-        tablesManager.settings.update_item(
+        tablesManager.autoplayer.update_item(
                 Key={"key_": "deployer_settings"},
                 UpdateExpression="SET last_account = :account",
                 ExpressionAttributeValues={":account": new_account["address"]}
