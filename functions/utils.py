@@ -75,7 +75,7 @@ def buyCrystal(account, amount, expected_cost, nonce, RPCProvider):
     RouterContract = RPCProvider.w3.eth.contract(address=RouterAddress, abi=RouterABI)
     tx = RouterContract.functions.swapETHForExactTokens(
         amount,
-        [items["Jewel"], items["Crystal"]],
+        [items["Jewel"][RPCProvider.chain], items["Crystal"][RPCProvider.chain]],
         account.address,
         int(time.time()+60)
         
