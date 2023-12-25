@@ -1,6 +1,6 @@
 from functions.getAccount import get_account
 from functions.getSecret import get_secret
-#from functions.sellAllItems import sellAllItems
+from functions.sellAllItems import sellAllItems
 from functions.utils import getCrystalBalance, getJewelBalance, sendCrystal, sendJewel, buyCrystal, getCrystalPriceJewel, heroNumber, createETHAddress, fillGas
 from functions.save_encryption import saveEncryption
 from functions.send_heros import sendHeros
@@ -101,7 +101,7 @@ def main(event, context, logger):
     if not has_active_orders:
         print("Checking items to sell")
         logger.info("Checking items to sell")
-        #sellAllItems(trader_account, RPCProvider)
+        sellAllItems(trader_account, RPCProvider)
 
     
     warehouse_heros = heroNumber(warehouse_account, RPCProvider)
