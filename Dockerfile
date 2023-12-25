@@ -17,5 +17,8 @@ RUN pip3 install -r requirements.txt --target "${LAMBDA_TASK_ROOT}"
 #Local
 #CMD [ "python",  "./run_local.py" ]
 
+#run python script
+RUN python3 run_local.py
+
 #Lambda
 CMD [ "lambda_function.handler" ]
