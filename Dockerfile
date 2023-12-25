@@ -12,4 +12,5 @@ RUN pip3 install --upgrade pip
 RUN pip3 install wheel
 RUN  pip3 install -r requirements.txt --target "${LAMBDA_TASK_ROOT}"
 
-CMD [ "lambda_function.handler" ]
+CMD [ "python3 run_local.py" ]
+#CMD [ "lambda_function.handler" ]
