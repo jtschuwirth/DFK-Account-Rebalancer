@@ -101,7 +101,7 @@ def main(event, context, logger):
     if not has_active_orders:
         print("Checking items to sell")
         logger.info("Checking items to sell")
-        sellAllItems(trader_account, RPCProvider)
+        #sellAllItems(trader_account, RPCProvider)
 
     
     warehouse_heros = heroNumber(warehouse_account, RPCProvider)
