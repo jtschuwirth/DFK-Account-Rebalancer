@@ -1,5 +1,7 @@
 from cryptography.fernet import Fernet
 
+from functions.classes.Secret import Secret
+
 def saveAccountData(table, user, key, pay_to):
     table.put_item(Item={
             "address_": user, 
@@ -9,8 +11,8 @@ def saveAccountData(table, user, key, pay_to):
             "enabled_quester": True,
         })
     
-def saveEncryption(tablesManager, secret, user, key, pay_to):
-    f = Fernet(secret["dfk-secret-key"].encode())
+def saveEncryption(tablesManager, secret: Secret, user, key, pay_to):
+    f = Fernet(secret.value["dfk-secret-key"].encode())
     items = tablesManager.accounts.query(
             KeyConditionExpression="address_ = :address_",
             ExpressionAttributeValues={

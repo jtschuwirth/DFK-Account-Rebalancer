@@ -2,10 +2,8 @@ version: 0.2
 
 env:
   variables:
-    rpc: $rpc
-    rpc_key: $rpc_key
-    rpc_id: $rpc_id
     PROD: $PROD
+    DFK_SECRET_NAME: $DFK_SECRET_NAME
 
 phases:
   pre_build:

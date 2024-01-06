@@ -1,11 +1,9 @@
 import requests
 import json
 
-itemsJson = open("data/items.json")
-items = json.load(itemsJson)
-
-contractsJson = open("data/contracts.json")
-contracts = json.load(contractsJson)
+from functions.classes.APIService import APIService
+from functions.classes.Account import Account
+from functions.classes.RPCProvider import RPCProvider
 
 graph_url = "https://defi-kingdoms-community-api-gateway-co06z8vi.uc.gateway.dev/graphql"
 headers = {
@@ -38,29 +36,28 @@ def getAccountHeros(account):
 
     return requests.post(graph_url, json={"query":query, "variables":variables}, headers=headers).json()["data"]["heroes"]
 
-def sendHero(account, sender, heroId, sender_nonce, RPCProvider):
-    tx = RPCProvider.w3.eth.contract(address=contracts["Heroes"][RPCProvider.chain], abi=ERC721ABI).functions.transferFrom(sender.address, account.address, int(heroId)).build_transaction({
+def sendHero(account: Account, sender: Account, heroId, apiService: APIService, rpcProvider: RPCProvider):
+    tx =  rpcProvider.w3.eth.contract(address=apiService.contracts["Heroes"]["address"], abi=ERC721ABI).functions.transferFrom(sender.address, account.address, int(heroId)).build_transaction({
         "from": sender.address,
-        "nonce": sender_nonce,
+        "nonce": sender.nonce,
     })
-    tx["gas"] = int(RPCProvider.w3.eth.estimate_gas(tx))
-    tx["maxFeePerGas"] = RPCProvider.w3.to_wei(50, 'gwei')
-    tx["maxPriorityFeePerGas"] = RPCProvider.w3.to_wei(2, "gwei")
-    signed_tx = RPCProvider.w3.eth.account.sign_transaction(tx, sender.key)
-    hash = RPCProvider.w3.eth.send_raw_transaction(signed_tx.rawTransaction)
-    hash = RPCProvider.w3.to_hex(hash)
+    tx["gas"] = int( rpcProvider.w3.eth.estimate_gas(tx))
+    tx["maxFeePerGas"] =  rpcProvider.w3.to_wei(50, 'gwei')
+    tx["maxPriorityFeePerGas"] = rpcProvider.w3.to_wei(2, "gwei")
+    signed_tx =  rpcProvider.w3.eth.account.sign_transaction(tx, sender.key)
+    hash =  rpcProvider.w3.eth.send_raw_transaction(signed_tx.rawTransaction)
+    hash =  rpcProvider.w3.to_hex(hash)
 
-def sendHeros(account, sender, amount, sender_nonce, w3):
-    nonce = sender_nonce
+def sendHeros(account, sender, amount, apiService: APIService, rpcProvider: RPCProvider):
     c = amount
     heros = getAccountHeros(sender)
     if c > len(heros): 
         print("Not enough heros")
         return
     for hero in heros:
-        sendHero(account, sender, hero["id"], nonce, w3)
+        sender.update_nonce(rpcProvider)
+        sendHero(account, sender, hero["id"], apiService, rpcProvider)
         print("Sent hero " + str(hero["id"]) + " to " + account.address)
-        nonce+=1
         c-=1
         if c == 0:
             break

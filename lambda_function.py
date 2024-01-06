@@ -8,7 +8,7 @@ def handler(event, context):
     try:
         logger.info("Starting lambda function")
         print("Starting lambda function")
-        return main(event, context, logger)
+        return main(logger)
     except Exception as e:
         logger.error(e)
         raise e
