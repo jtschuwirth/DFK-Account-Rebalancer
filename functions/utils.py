@@ -110,7 +110,7 @@ def fillGas(account, manager, amount, rpcProvider: RPCProvider):
         "from": manager.address,
         "to": account.address,
         "value": amount,
-        "nonce": account.nonce,
+        "nonce": manager.nonce,
         "chainId": rpcProvider.chainId
     }
     gas = rpcProvider.w3.eth.estimate_gas(tx)
