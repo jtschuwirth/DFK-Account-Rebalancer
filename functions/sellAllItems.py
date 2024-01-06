@@ -33,7 +33,7 @@ def sellAllItems(account: Account, apiService: APIService, rpcProvider: RPCProvi
     for i in range(len(response)):
         if response[i] > 0:  
             token = tokens[i]
-            reserves = getReserves(token, rpcProvider)
+            reserves = getReserves(token, apiService, rpcProvider)
             expected_cost = localGetAmountOut(response[i], reserves)
 
             if checkAllowance(account, token, apiService.contracts["Router"]["address"], ERC20ABI, rpcProvider):
@@ -47,6 +47,7 @@ def sellAllItems(account: Account, apiService: APIService, rpcProvider: RPCProvi
                 response[i],
                 token,
                 expected_cost,
+                apiService,
                 rpcProvider
             )
     
