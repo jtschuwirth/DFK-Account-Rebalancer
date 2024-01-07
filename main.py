@@ -67,7 +67,7 @@ def main(logger):
             logger.info(f"Sending {buyer_refill_amount} crystals to buyer")
 
             setup_account.update_nonce(rpcProvider)
-            sendCrystal(warehouse_account, setup_account, crystal_amount, apiService , rpcProvider)
+            sendCrystal(warehouse_account, setup_account, crystal_amount, apiService ,rpcProvider)
 
     if enabled_profit:
             if  refiller_max_buffer*10**18 < getJewelBalance(setup_account, rpcProvider):

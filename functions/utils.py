@@ -54,7 +54,7 @@ def sendCrystal(account, manager, amount, apiService: APIService, rpcProvider: R
         amount,
     ).build_transaction({
         "from": manager.address,
-        "nonce": account.nonce,
+        "nonce": manager.nonce,
     })
     tx["gas"] = int(rpcProvider.w3.eth.estimate_gas(tx))
     tx["maxFeePerGas"] = rpcProvider.w3.to_wei(50, 'gwei')
